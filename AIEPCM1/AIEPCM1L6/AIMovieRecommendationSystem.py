@@ -34,7 +34,7 @@ def recommend_movies(genre=None, mood=None, rating=None, top_n=5):
         genre_movies = movies_df
 
     if rating:
-        genre_movies = genre_movies[genre_movies['IMDB Rating'] >= rating]
+        genre_movies = genre_movies[genre_movies['IMDB_Rating'] >= rating]
 
     if genre_movies.empty:
         return f"No movies found for genre '{genre}' with that rating range."
@@ -43,18 +43,18 @@ def recommend_movies(genre=None, mood=None, rating=None, top_n=5):
     if mood:
         polarity = TextBlob(mood).sentiment.polarity
         if polarity > 0:
-            genre_movies = genre_movies.sort_values(by='IMDB Rating', ascending=False)
+            genre_movies = genre_movies.sort_values(by='IMDB_Rating', ascending=False)
         elif polarity < 0:
-            genre_movies = genre_movies.sort_values(by='IMDB Rating', ascending=True)
+            genre_movies = genre_movies.sort_values(by='IMDB_Rating', ascending=True)
 
     top_movies = genre_movies.head(top_n)
-    return top_movies[['Series_Title', 'Genre', 'IMDB Rating']]
+    return top_movies[['Series_Title', 'Genre', 'IMDB_Rating']]
 
 # Display movie recommendations
 def display_recommendations(recs, name):
     print(Fore.CYAN + f"\n🎥 Movie Recommendations for {name}:\n")
     for i, row in recs.iterrows():
-        print(Fore.GREEN + f"{row['Series_Title']} ({row['Genre']}) - ⭐ {row['IMDB Rating']}")
+        print(Fore.GREEN + f"{row['Series_Title']} ({row['Genre']}) - ⭐ {row['IMDB_Rating']}")
     print()
 
 # Small processing animation
@@ -76,9 +76,9 @@ def handle_ai(name):
     mood_desc = "positive 😊" if polarity > 0 else "negative 😞" if polarity < 0 else "neutral 😐"
     print(f"{Fore.GREEN}Your mood is {mood_desc} (Polarity: {polarity:.2f})\n")
 
-    # Ask for minimum IMDB rating
+    # Ask for minimum IMDB_Rating
     while True:
-        rating_input = input(Fore.YELLOW + "Enter minimum IMDB rating (7.6–9.3) or 'skip': ").strip()
+        rating_input = input(Fore.YELLOW + "Enter minimum IMDB_Rating (7.6–9.3) or 'skip': ").strip()
         if rating_input.lower() == 'skip':
             rating = None
             break
