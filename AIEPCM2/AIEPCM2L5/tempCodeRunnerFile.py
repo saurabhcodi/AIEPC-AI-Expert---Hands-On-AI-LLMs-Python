@@ -1,1 +1,0 @@
-image_path = 'example.jpg'  # Provide your image path
