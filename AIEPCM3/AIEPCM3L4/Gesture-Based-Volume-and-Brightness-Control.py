@@ -1,84 +1,62 @@
-import cv2
-import mediapipe as mp
-import numpy as np
+import cv2, mediapipe as mp, numpy as np
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-from comtypes import CLSCTX_ALL
-from math import hypot
 import screen_brightness_control as sbc
-# Initialize MediaPipe Hands
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
-mp_draw = mp.solutions.drawing_utils
-# Pycaw for volume control
-try:
-    devices = AudioUtilities.GetSpeakers()
-    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volume = interface.QueryInterface(IAudioEndpointVolume)
-    volume_range = volume.GetVolumeRange()
-    min_vol = volume_range[0]
-    max_vol = volume_range[1]
-except Exception as e:
-    print(f"Error initializing Pycaw: {e}")
-    exit()
-# Webcam setup
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Error: Could not access the webcam.")
-    exit()
-while True:
-    success, img = cap.read()
-    if not success:
-        print("Failed to read frame from webcam.")
-        break
-    img = cv2.flip(img, 1)  # Flip the image for a mirror effect
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    results = hands.process(img_rgb)
-    if results.multi_hand_landmarks and results.multi_handedness:
-        for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
-            hand_label = results.multi_handedness[i].classification[0].label  # 'Left' or 'Right'
-            mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-            # Extract the tip of the thumb and index finger
-            thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
-            index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-            h, w, _ = img.shape
-            thumb_pos = (int(thumb_tip.x * w), int(thumb_tip.y * h))
-            index_pos = (int(index_tip.x * w), int(index_tip.y * h))
-            # Draw circles at the tips
-            cv2.circle(img, thumb_pos, 10, (255, 0, 0), cv2.FILLED)
-            cv2.circle(img, index_pos, 10, (255, 0, 0), cv2.FILLED)
-            cv2.line(img, thumb_pos, index_pos, (0, 255, 0), 3)
-            # Calculate the distance between thumb and index finger
-            distance = hypot(index_pos[0] - thumb_pos[0], index_pos[1] - thumb_pos[1])
-            if hand_label == "Right":  # Control volume with the right hand
-                vol = np.interp(distance, [30, 300], [min_vol, max_vol])
-                try:
-                    volume.SetMasterVolumeLevel(vol, None)
 
-                except Exception as e:
-                    print(f"Error adjusting volume: {e}")
-                # Visual feedback for volume
-                vol_bar = np.interp(distance, [30, 300], [400, 150])
-                cv2.rectangle(img, (50, 150), (85, 400), (255, 0, 0), 2)
-                cv2.rectangle(img, (50, int(vol_bar)), (85, 400), (255, 0, 0), cv2.FILLED)
-                cv2.putText(img, f'Volume: {int(np.interp(distance, [30, 300], [0, 100]))}%', (40, 450),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
-            elif hand_label == "Left":  # Control brightness with the left hand
-                brightness = np.interp(distance, [30, 300], [0, 100])
-                try:
-                    sbc.set_brightness(brightness)
-                except Exception as e:
-                    print(f"Error adjusting brightness: {e}")
-                # Visual feedback for brightness
-                brightness_bar = np.interp(distance, [30, 300], [400, 150])
-                cv2.rectangle(img, (100, 150), (135, 400), (0, 255, 0), 2)
-                cv2.rectangle(img, (100, int(brightness_bar)), (135, 400), (0, 255, 0), cv2.FILLED)
-                cv2.putText(img, f'Brightness: {int(brightness)}%', (90, 450),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
-    # Show the video feed with annotations
-    cv2.imshow("Gesture Volume and Brightness Controller", img)
-# Break the loop if 'q' is pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+Hands = mp.solutions.hands
+hands = Hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
+draw = mp.solutions.drawing_utils
+TH, IX = Hands.HandLandmark.THUMB_TIP, Hands.HandLandmark.INDEX_FINGER_TIP
+
+try:
+    dev = AudioUtilities.GetDefaultOutputDevice() if hasattr(AudioUtilities, "GetDefaultOutputDevice") else AudioUtilities.GetSpeakers()
+    volctl = dev.EndpointVolume.QueryInterface(IAudioEndpointVolume)
+    minv, maxv = volctl.GetVolumeRange()[:2]
+except Exception as e:
+    print(f"Pycaw error: {e}"); exit()
+
+cap = cv2.VideoCapture(0)
+if not cap.isOpened(): print("Error: Webcam not accessible."); exit()
+
+WIN = "Hand Gesture Control"; cv2.namedWindow(WIN, cv2.WINDOW_NORMAL)
+
+while True:
+    ok, img = cap.read()
+    if not ok: break
+    img = cv2.flip(img, 1); h, w = img.shape[:2]
+    res = hands.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+    if res.multi_hand_landmarks and res.multi_handedness:
+        for i, hand in enumerate(res.multi_hand_landmarks):
+            label = res.multi_handedness[i].classification[0].label
+            draw.draw_landmarks(img, hand, Hands.HAND_CONNECTIONS)
+            lm = hand.landmark
+            tp = (int(lm[TH].x*w), int(lm[TH].y*h)); ip = (int(lm[IX].x*w), int(lm[IX].y*h))
+            cv2.circle(img, tp, 10, (255,0,0), cv2.FILLED); cv2.circle(img, ip, 10, (255,0,0), cv2.FILLED)
+            cv2.line(img, tp, ip, (0,255,0), 3)
+            dist = float(np.hypot(ip[0]-tp[0], ip[1]-tp[1]))
+
+            if label == "Left":  # real RIGHT hand -> volume (frame is flipped)
+                v = np.interp(dist, [30,300], [minv,maxv])
+                try: volctl.SetMasterVolumeLevel(v, None)
+                except Exception as e: print(f"Volume error: {e}")
+                bar = int(np.interp(dist, [30,300], [400,150])); pct = int(np.interp(dist, [30,300], [0,100]))
+                cv2.rectangle(img, (50,150), (85,400), (255,0,0), 2); cv2.rectangle(img, (50,bar), (85,400), (255,0,0), cv2.FILLED)
+                cv2.putText(img, f"{pct}%", (40,450), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 3)
+
+            elif label == "Right":  # real LEFT hand -> brightness
+                b = int(np.interp(dist, [30,300], [0,100]))
+                try: sbc.set_brightness(b)
+                except Exception as e: print(f"Brightness error: {e}")
+                bar = int(np.interp(dist, [30,300], [400,150])); x1, x2 = w-85, w-50
+                cv2.rectangle(img, (x1,150), (x2,400), (0,255,0), 2); cv2.rectangle(img, (x1,bar), (x2,400), (0,255,0), cv2.FILLED)
+                cv2.putText(img, f"{b}%", (w-110,450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 3)
+
+    cv2.imshow(WIN, img)
+    k = cv2.waitKey(1) & 0xFF
+    if k in (27, ord("q")): break
+    try:
+        if cv2.getWindowProperty(WIN, cv2.WND_PROP_VISIBLE) < 1: break
+    except cv2.error:
         break
-# Release the webcam and close all windows
-cap.release()
-cv2.destroyAllWindows()
+
+cap.release(); cv2.destroyAllWindows()
