@@ -177,16 +177,19 @@ while True:
             # Click picture: Thumb touches Index finger
 
             if abs(thumb_x - index_x) < 30 and abs(thumb_y - index_y) < 30:
-
                 if current_time - last_action_time > debounce_time:
 
-                    cv2.putText(img, "Picture Captured!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    # Apply current filter before saving
+                    filtered_img = apply_filter(img, filters[current_filter])
+
+                    # Save filtered image
+                    cv2.imwrite(f"picture_{int(time.time())}.jpg", filtered_img)
+
+                    cv2.putText(img, "Filtered Picture Captured!", (50, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
                     last_action_time = current_time
-
-                    cv2.imwrite(f"picture_{int(time.time())}.jpg", img)
-
-                    print("Picture saved!")
+                    print("Filtered picture saved!")
 
  
 
