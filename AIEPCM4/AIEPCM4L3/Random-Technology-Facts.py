@@ -1,7 +1,7 @@
 import requests
 
 # Technology category fact endpoint
-url = "https://uselessfacts.jsph.pl/category/Technology.json?language=en"
+url = "https://uselessfacts.jsph.pl/api/v2/facts/random?language=en"
 
 # Function to fetch and display a random technology-related fact
 def get_random_technology_fact():
@@ -18,4 +18,3 @@ while True:
     if user_input.lower() == 'q':
         break
     get_random_technology_fact()
- 
