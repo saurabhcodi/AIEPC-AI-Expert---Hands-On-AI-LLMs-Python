@@ -1,112 +1,57 @@
-import requests
+"""
+Simple Text-to-Image Generator
+Uses primary model, automatically falls back to alternatives only if needed
 
+INSTALLATION:
+    pip install huggingface-hub pillow
+"""
+from huggingface_hub import InferenceClient
+from datetime import datetime
 from PIL import Image
-
-from io import BytesIO
-
 from config import HF_API_KEY
-# Define the API endpoint as a constant
 
-API_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-3-medium-diffusers"
+# MODEL PRIORITY LIST - Primary model first, fallbacks only if it fails
+MODELS = [
+    "ByteDance/SDXL-Lightning",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    "stabilityai/sdxl-turbo",
+    "runwayml/stable-diffusion-v1-5", # Fallback 2
+]
 
- 
+# Initialize client
+client = InferenceClient(api_key=HF_API_KEY)
 
-def generate_image_from_text(prompt: str) -> Image.Image:
+print(f"Primary model: {MODELS[0]}")
+print("Type 'quit' to exit\n")
 
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+while True:
+    prompt = input("Enter prompt: ").strip()
+    if prompt.lower() in ["quit", "exit", "q"]:
+        break
+    if not prompt:
+        continue
 
-    payload = {"inputs": prompt}
+    print("Generating...")
+    image = None
 
- 
-
-    try:
-
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-
-        response.raise_for_status()  # Raise an error for bad status codes
-
- 
-
-        # Check if the response content is an image
-
-        if 'image' in response.headers.get('Content-Type', ''):
-
-            image = Image.open(BytesIO(response.content))
-
-            return image
-
-        else:
-
-            raise Exception("The response is not an image. It might be an error message.")
-
-    except requests.exceptions.RequestException as e:
-
-        raise Exception(f"Request failed: {e}")
-
- 
-
-def main():
-
-    """
-
-    Main loop for user interaction. Continuously prompts the user for a text description,
-
-    generates an image via the API, displays it, and offers an option to save the image.
-
-    """
-
-    print("Welcome to the Text-to-Image Generator!")
-
-    print("Type 'exit' to quit the program.\n")
-
-    
-
-    while True:
-
-        prompt = input("Enter a description for the image you want to generate:\n").strip()
-
-        if prompt.lower() == "exit":
-
-            print("Goodbye!")
-
-            break
-
-        
-
-        print("\nGenerating image...\n")
-
+    # Try each model in order until one works
+    for model in MODELS:
         try:
+            image = client.text_to_image(prompt, model=model)
+            break  # Success! Exit the loop
+        except Exception:
+            print(f"  Executing next...")
+            continue
 
-            image = generate_image_from_text(prompt)
+    # If we got an image, save and display it
+    if image:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"generated_{timestamp}.png"
+        image.save(filename)
+        print(f"✓ Saved: {filename}")
+        image.show()
+        print()
+    else:
+        print("Error: All models failed. Check your API key.\n")
 
-            image.show()
-
- 
-
-            save_option = input("Do you want to save this image? (yes/no): ").strip().lower()
-
-            if save_option == "yes":
-
-                file_name = input("Enter a name for the image file (without extension): ").strip() or "generated_image"
-
-                # Basic validation for file name
-
-                file_name = "".join(c for c in file_name if c.isalnum() or c in ('_', '-')).rstrip()
-
-                image.save(f"{file_name}.png")
-
-                print(f"Image saved as {file_name}.png\n")
-
-        except Exception as e:
-
-            print(f"An error occurred: {e}\n")
-
-        
-
-        print("-" * 80 + "\n")
-
- 
-
-if __name__ == "__main__":
-
-    main()
+print("Goodbye!")
