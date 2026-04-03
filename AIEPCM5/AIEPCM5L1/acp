@@ -1,0 +1,137 @@
+"""
+Advanced Text-to-Image Generator (HuggingFace)
+
+Features:
+- Style presets
+- Negative prompts
+- Aspect ratio control
+- Batch generation
+- Seed control
+- Model fallback system
+- Colored terminal output
+
+INSTALL:
+    pip install huggingface-hub pillow colorama
+"""
+
+from huggingface_hub import InferenceClient
+from datetime import datetime
+from PIL import Image
+from config import HF_API_KEY
+import random
+from colorama import Fore, Style, init
+
+# Initialize colorama
+init(autoreset=True)
+
+# MODEL PRIORITY LIST
+MODELS = [
+    "ByteDance/SDXL-Lightning",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    "stabilityai/sdxl-turbo",
+    "runwayml/stable-diffusion-v1-5",
+]
+
+# STYLE PRESETS
+STYLES = {
+    "1": "photorealistic, ultra detailed, 8k",
+    "2": "anime style, vibrant colors, studio ghibli",
+    "3": "cinematic lighting, dramatic, film still",
+    "4": "fantasy art, epic, highly detailed",
+    "5": "cyberpunk, neon lights, futuristic",
+}
+
+# Initialize client
+client = InferenceClient(api_key=HF_API_KEY)
+
+print(Fore.CYAN + f"Primary model: {MODELS[0]}")
+print(Fore.YELLOW + "Type 'quit' to exit\n")
+
+while True:
+    # ---------------- INPUT ---------------- #
+    prompt = input(Fore.WHITE + "Enter prompt: ").strip()
+    if prompt.lower() in ["quit", "exit", "q"]:
+        break
+    if not prompt:
+        continue
+
+    # Style selection
+    print(Fore.MAGENTA + "\nChoose Style:")
+    for k, v in STYLES.items():
+        print(f"{k}: {v}")
+
+    style_choice = input("Enter style number: ").strip()
+    style = STYLES.get(style_choice, "")
+
+    quality = input("Quality (low, medium, high): ").strip()
+    negative_prompt = input("Negative prompt (optional): ").strip()
+
+    # Aspect ratio
+    aspect = input("Aspect ratio (1:1, 16:9, 9:16): ").strip()
+
+    if aspect == "16:9":
+        width, height = 1024, 576
+    elif aspect == "9:16":
+        width, height = 576, 1024
+    else:
+        width, height = 1024, 1024
+
+    # Batch generation
+    try:
+        num_images = int(input("How many images? (1-5): ") or 1)
+    except:
+        num_images = 1
+
+    # Seed
+    seed = random.randint(1, 100000)
+
+    # Full prompt
+    full_prompt = f"{prompt}, {style}, {quality} quality"
+
+    print(Fore.BLUE + "\nGenerating...\n")
+
+    # ---------------- GENERATION ---------------- #
+    for i in range(num_images):
+        image = None
+
+        for model in MODELS:
+            try:
+                print(Fore.YELLOW + f"Trying model: {model}")
+
+                image = client.text_to_image(
+                    prompt=full_prompt,
+                    model=model,
+                    negative_prompt=negative_prompt if negative_prompt else None,
+                    guidance_scale=7.5,
+                    num_inference_steps=30,
+                    width=width,
+                    height=height,
+                    seed=seed + i  # slight variation
+                )
+
+                print(Fore.GREEN + "✓ Success!")
+                break
+
+            except Exception as e:
+                print(Fore.RED + f"Failed → switching model...")
+                continue
+
+        # ---------------- SAVE ---------------- #
+        if image:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"generated_{timestamp}_{i}.png"
+
+            image.save(filename)
+            print(Fore.GREEN + f"✓ Saved: {filename}")
+
+            try:
+                image.show()
+            except:
+                pass
+
+            print(Style.DIM + f"Seed used: {seed + i}\n")
+
+        else:
+            print(Fore.RED + "Error: All models failed.\n")
+
+print(Fore.CYAN + "Goodbye!")
