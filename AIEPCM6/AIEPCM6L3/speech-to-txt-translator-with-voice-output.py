@@ -1,3 +1,17 @@
+# # Install required libraries
+# pip3 install SpeechRecognition
+# pip3 install pyttsx3
+# pip3 install googletrans==4.0.0-rc1
+# pip3 install pyaudio
+
+# # macOS Apple Silicon (M1/M2/M3/M4/M5) fix
+# # Install FLAC using Homebrew
+# brew install flac
+
+# # Remove old Intel FLAC binary bundled with speech_recognition
+# # Replace <username> and <python-version> with your actual values
+# rm /Users/<username>/Library/Python/<python-version>/lib/python/site-packages/speech_recognition/flac-mac
+
 import speech_recognition as sr
 
 import pyttsx3
