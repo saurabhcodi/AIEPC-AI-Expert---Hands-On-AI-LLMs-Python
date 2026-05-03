@@ -15,6 +15,7 @@ def speak(text, lang):
     pygame.mixer.music.play()
     while pygame.mixer.music.get_busy():
         continue
+    pygame.mixer.music.unload()
 
     os.remove(filename)
 # Convert speech to text
