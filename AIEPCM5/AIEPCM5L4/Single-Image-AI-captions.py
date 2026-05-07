@@ -4,10 +4,7 @@ from config import HF_API_KEY
 API_URL = "https://router.huggingface.co/v1/chat/completions"
 HEADERS = {"Authorization": f"Bearer {HF_API_KEY}", "Content-Type": "application/json"}
 MODELS = [
-    "Qwen/Qwen3-VL-8B-Instruct:together",
-    "Qwen/Qwen3-VL-32B-Instruct:together",
-    "Qwen/Qwen2.5-VL-32B-Instruct:together",
-    "Qwen/Qwen2-VL-7B-Instruct:together",
+    "Qwen/Qwen2.5-VL-72B-Instruct",
 ]
 
 def data_url(b: bytes) -> str:
